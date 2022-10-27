@@ -1,12 +1,11 @@
-from cgitb import html, reset
+
 # from msilib.schema import tables
-from time import sleep, time
-from datetime import date, datetime, timedelta
+from time import sleep
+from datetime import date, timedelta
 import re
 
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By

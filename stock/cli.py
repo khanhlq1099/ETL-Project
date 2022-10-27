@@ -5,7 +5,7 @@ from datetime import date, datetime
 # import stock.module.ssi.service as ssi_service
 import stock.module.cafef.service as cafef_service
 from stock.lib.core.constants import DATA_DESTINATION_TYPE, PERIOD_TYPE
-import stock.lib.core.service as stock_service
+# import stock.lib.core.service as stock_service
 # import stock.module.ssi.api as api
 app = typer.Typer()
 
@@ -15,10 +15,10 @@ def healthcheck(data_scoure: str):
     typer.echo(f"{data_scoure} is OK!")
 
 
-@app.command()
-def init_db():
-    stock_service.init_db()
-    typer.echo(f"Done.")
+# @app.command()
+# def init_db():
+#     stock_service.init_db()
+#     typer.echo(f"Done.")
 
 
 @app.command()
