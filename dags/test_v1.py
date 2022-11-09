@@ -14,8 +14,10 @@ with DAG(
     dag_id='hello_world_v3',
     default_args=default_args,
     description='This is my first dag',
-    start_date=datetime(2021, 7, 29, 2),
-    schedule_interval='@daily'
+    start_date=datetime(2022, 10, 27),
+    schedule_interval='*/10 * * * *',
+    # catchup=False,
+    end_date=datetime(2022, 10, 28)
 ) as dag:
     task1 = BashOperator(
         task_id='first_task',
