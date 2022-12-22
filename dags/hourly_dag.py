@@ -18,12 +18,13 @@ with DAG(
     default_args=default_args,
     description='Python Operator',
     start_date=datetime(2022, 11, 9),
-    schedule_interval='0 2,5,8,11 * * *'
+    # schedule_interval='0 2,5,8,11 * * *'
+    schedule_interval='@once',
 ) as dag:
     task1 = PythonOperator(
         task_id = 'cafef_etl_hourly_stock_price',
         python_callable=service.etl_hourly_stock_price,
-        op_kwargs={'data_destination_type':DATA_DESTINATION_TYPE.SQL_SERVER,'period_type':PERIOD_TYPE.TODAY,'today':True}
+        op_kwargs={'data_destination_type':DATA_DESTINATION_TYPE.SQL_SERVER,'period_type':PERIOD_TYPE.PERIOD,'from_date':datetime(2022, 11, 21), 'to_date':datetime(2022, 11, 22)}
     )
     [task1]
     

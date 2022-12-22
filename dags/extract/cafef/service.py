@@ -12,11 +12,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
-from config.config import  SQL_SERVER_CONFIG
+from config.config import  SQL_SERVER_CONFIG,MinIO_S3_client
 from lib.core.constants import DATA_DESTINATION_TYPE, PERIOD_TYPE
 import lib.datetime_helper as datetime_helper
 import lib.sql_server as db
 import extract.cafef.crawler as crawler 
+
+import io
 
 def select():
     conn,cursor = db.open_session(SQL_SERVER_CONFIG.CONNECTION_STRING)
@@ -27,7 +29,7 @@ def select():
     db.close_session(conn,cursor)
     print(datetime.now())
 
-
+#Theo ngay
 def etl_daily_stock_price(data_destination_type: DATA_DESTINATION_TYPE,
                           period_type: PERIOD_TYPE, business_date: Optional[date] = None,
                           from_date: Optional[date] = None, to_date: Optional[date] = None, today: Optional[bool] = False):
@@ -43,7 +45,7 @@ def etl_daily_stock_price(data_destination_type: DATA_DESTINATION_TYPE,
     start_time = datetime.now()
     start_timestamp = datetime_helper.get_utc_timestamp(start_time)
     # symbols = get_symbols()
-    symbols = "PVI,PRE,BVH,BMI,PTI,PGI,MIG,VNR,OPC,DVN,VLB,SHI,VNINDEX,VN30INDEX,VN100-INDEX,HNX-INDEX,HNX30-INDEX"
+    symbols = "PAC,PVI,PRE,BVH,BMI,PTI,PGI,MIG,VNR,OPC,DVN,VLB,SHI,VNINDEX,VN30INDEX,VN100-INDEX,HNX-INDEX,HNX30-INDEX"
     # symbols = "DVN"
     # symbols = "PVI"
     # symbols = "VNINDEX,VN30INDEX"
@@ -61,7 +63,6 @@ def etl_daily_stock_price(data_destination_type: DATA_DESTINATION_TYPE,
     end_timestamp = datetime_helper.get_utc_timestamp(start_time)
     print(f"Duration: {end_time - start_time}")
     print(f"Done.")
-
 
 def etl_daily_symbol_price_to_sql_server(symbol: str, period_type: PERIOD_TYPE, business_date: Optional[date] = None,
                                          from_date: Optional[date] = None, to_date: Optional[date] = None):
@@ -107,6 +108,26 @@ def etl_daily_symbol_price_to_sql_server(symbol: str, period_type: PERIOD_TYPE, 
         cursor.execute("COMMIT TRANSACTION")
         cursor.commit()
 
+    def csv_file(df: pd.DataFrame):
+        df = df.replace(nan,None)
+        df.to_csv('dags/logs/etl_daily_stock_price_log.csv', sep=',',encoding='utf-8',header=True,index=False)
+
+    def upload_df_to_s3(df:pd.DataFrame):
+        today = date.today()
+        current_date = today.strftime("%Y_%m_%d")
+        year = today.strftime("%Y")
+        year_month = today.strftime("%Y_%m")
+        with io.StringIO() as csv_buffer:
+            df.to_csv(csv_buffer,index=False)
+            response = MinIO_S3.s3.put_object(Bucket='bucket-test',Key = "bronze/cafef/daily_stock_price/"+year+"/"+year_month+"/"+"2022_12_12"+ ".csv",Body=csv_buffer.getvalue())
+
+            status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+            if status == 200:
+                print(f"Successful S3 put_object response. Status - {status}")
+            else:
+                print(f"Unsuccessful S3 put_object response. Status - {status}")
+
     chrome_options = webdriver.ChromeOptions()
     # chrome_options.binary_location = "/Users/lamquockhanh10/VSCodeProjects/kpim_stock/stock_etl/stock/lib/chromedriver"
     chrome_options.add_argument("--window-size=1920x1080")
@@ -124,6 +145,9 @@ def etl_daily_symbol_price_to_sql_server(symbol: str, period_type: PERIOD_TYPE, 
         if df.shape[0] >= 1:
             handle_delete_data(cursor, symbol, from_date, to_date)
             handle_insert_data(cursor, df)
+            # csv_file(df)
+            # upload_df_to_s3(df)
+
     except Exception as e:
         print(e)
     finally:
@@ -145,6 +169,7 @@ def etl_daily_symbol_price_to_sql_server(symbol: str, period_type: PERIOD_TYPE, 
     end_time = datetime.now()
     print(f"Symbol: {symbol} From Date: {from_date} - To Date: {to_date} StartTime: {start_time} Duration: {end_time - start_time}")
 
+#Theo gio
 def etl_hourly_stock_price(data_destination_type: DATA_DESTINATION_TYPE,
                           period_type: PERIOD_TYPE, business_date: Optional[date] = None,
                           from_date: Optional[date] = None, to_date: Optional[date] = None, today: Optional[bool] = False):
@@ -154,8 +179,8 @@ def etl_hourly_stock_price(data_destination_type: DATA_DESTINATION_TYPE,
     start_time = datetime.now()
     start_timestamp = datetime_helper.get_utc_timestamp(start_time)
     # symbols = get_symbols()
-    symbols = "PVI,PRE,BVH,BMI,PTI,PGI,MIG,VNR,OPC,DVN,VLB,SHI"
-    # symbols = "DVN"
+    symbols = "PAC,PVI,PRE,BVH,BMI,PTI,PGI,MIG,VNR,OPC,DVN,VLB,SHI"
+    # symbols = "PVI"
     symbols = symbols.split(",")
     print(symbols)
 
@@ -227,6 +252,8 @@ def etl_hourly_symbol_price_to_sql_server(symbol: str, period_type: PERIOD_TYPE,
         if df.shape[0] >= 1:
             handle_delete_data(cursor, symbol, from_date, to_date)
             handle_insert_data(cursor, df)
+            # return df
+            
     except Exception as e:
         print(e)
     finally:
@@ -248,13 +275,15 @@ def etl_daily_history_lookup(data_destination_type: DATA_DESTINATION_TYPE,period
     # markets = "HOSE" 
     markets = markets.split(",")
     print(markets)
+    
 
     if today: business_date = datetime.now().date()
 
     if data_destination_type == DATA_DESTINATION_TYPE.SQL_SERVER:
         for market in markets:
             etl_daily_market_history_lookup(market,period_type,business_date,from_date,to_date)
-            
+
+    # print(data_destination_type)
     end_time = datetime.now()
     print(f"Duration: {end_time - start_time}")
     print(f"Done.")
@@ -308,13 +337,37 @@ def etl_daily_market_history_lookup(market: str,period_type: PERIOD_TYPE, busine
         cursor.commit()
         pass
 
+    def csv_file(df: pd.DataFrame):
+        df = df.replace(nan,None)
+        df.to_csv('dags/logs/etl_daily_history_lookup_log.csv', sep=',',encoding='utf-8',header=True,index=False)
+        # df.to_json('dags/logs/log.json')
+
+    def upload_df_to_s3(df:pd.DataFrame):
+        today = date.today()
+        current_date = today.strftime("%Y_%m_%d")
+        year = today.strftime("%Y")
+        year_month = today.strftime("%Y_%m")
+        with io.StringIO() as csv_buffer:
+            df.to_csv(csv_buffer,index=False)
+            response = MinIO_S3.s3.put_object(Bucket='bucket-test',Key = "bronze/cafef/daily_history_lookup/"+year+"/"+year_month+"/"+"2022_12_12"+ ".csv",Body=csv_buffer.getvalue())
+
+            status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+            if status == 200:
+                print(f"Successful S3 put_object response. Status - {status}")
+            else:
+                print(f"Unsuccessful S3 put_object response. Status - {status}")
+
     conn,cursor = db.open_session(SQL_SERVER_CONFIG.CONNECTION_STRING)
     try:
         df = crawler.extract_daily_market_history_lookup_price_data_by_bs4(market,from_date,to_date)
 
         if df.shape[0] >=1:
-            handle_delete_data(cursor,market,from_date,to_date)
-            handle_insert_data(cursor,df)
+            # handle_delete_data(cursor,market,from_date,to_date)
+            # handle_insert_data(cursor,df)
+            upload_df_to_s3(df)
+            # csv_file(df)
+
 
     except Exception as e:
         print(e)
@@ -343,16 +396,50 @@ def etl_daily_setting_command(data_destination_type: DATA_DESTINATION_TYPE,perio
     print(markets)
 
     if today: business_date = datetime.now().date()
+    if period_type != PERIOD_TYPE.PERIOD:
+        from_date, to_date = datetime_helper.calc_period_range(business_date=business_date,period_type=period_type)
+    if period_type == PERIOD_TYPE.PERIOD:
+        from_date = from_date
+        to_date = to_date
 
+    if not ( from_date and to_date):
+        return
+
+    def upload_df_to_s3(df:pd.DataFrame):
+        df = df.replace(nan,None)       
+        today = date.today()
+        
+        current_date = today.strftime("%Y_%m_%d")
+        year = today.strftime("%Y")
+        year_month = today.strftime("%Y_%m")
+        with io.StringIO() as csv_buffer:
+            df.to_csv(csv_buffer,sep=',',encoding='utf-8',index=False,mode='w+')
+            response = MinIO_S3_client.s3.put_object(Bucket='bucket-test',Key = "bronze/cafef/daily_setting_command/"+year + "/" +year_month +"/" +from_date.strftime("%Y_%m_%d")+ ".csv",Body=csv_buffer.getvalue())
+
+            status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+            if status == 200:
+                print(f"Successful")
+            else:
+                print(f"Unsuccessful")
+    df = pd.DataFrame([])
     if data_destination_type == DATA_DESTINATION_TYPE.SQL_SERVER:
-        for market in markets:
-            etl_daily_market_setting_command(market,period_type,business_date,from_date,to_date)
+        for idx,market in enumerate(markets):
+            if idx == 0:
+                df = crawler.extract_daily_market_setting_command_by_bs4(market,from_date,to_date)
+            else:
+                df = pd.concat([df,crawler.extract_daily_market_setting_command_by_bs4(market,from_date,to_date)],ignore_index=True)   
+            
+    try:
+        upload_df_to_s3(df)
+    except Exception as e:
+        print(e)
 
     end_time = datetime.now()
-    print(f"Duration: {end_time - start_time}")
+    print(f"Market: {market} || From Date: {from_date} - To Date: {to_date} || StartTime: {start_time} - EndTime: {end_time} || Duration: {end_time - start_time}" )
     print(f"Done.")
 
-# Thong ke dat lenh voi cac san
+# Thong ke dat lenh voi tung san
 def etl_daily_market_setting_command(market: str,period_type: PERIOD_TYPE, business_date: Optional[date] = None,
                                     from_date: Optional[datetime] = None, to_date: Optional[datetime] = None):
     # cafef_crawler.extract_daily_market_setting_command_by_bs4(market, from_date, to_date)
@@ -404,14 +491,22 @@ def etl_daily_market_setting_command(market: str,period_type: PERIOD_TYPE, busin
         cursor.commit()
         pass
 
+    def csv_file(df: pd.DataFrame):
+        df = df.replace(nan,None)
+        df.to_csv('dags/logs/etl_daily_setting_command_log.csv', sep=',',encoding='utf-8',header=True,index=False)
+        
     conn,cursor = db.open_session(SQL_SERVER_CONFIG.CONNECTION_STRING)
     try:
         df = crawler.extract_daily_market_setting_command_by_bs4(market,from_date,to_date)
-
+        
         if df.shape[0] >=1:
-            handle_delete_data(cursor,market,from_date,to_date)
-            handle_insert_data(cursor,df)
-            # print(df)
+        #     # handle_delete_data(cursor,market,from_date,to_date)
+        #     # handle_insert_data(cursor,df)
+        #     # print(df)
+        #     # csv_file(df)
+            upload_df_to_s3(df)
+        #     # return(df)
+
     except Exception as e:
         print(e)
     finally:
@@ -498,13 +593,35 @@ def etl_daily_market_foreign_transactions(market: str,period_type: PERIOD_TYPE, 
         cursor.commit()
         pass
 
+    def csv_file(df: pd.DataFrame):
+        df = df.replace(nan,None)
+        df.to_csv('dags/logs/etl_daily_foreign_transactions_log.csv', sep=',',encoding='utf-8',header=True,index=False)
+
+    def upload_df_to_s3(df:pd.DataFrame):
+        today = date.today()
+        current_date = today.strftime("%Y_%m_%d")
+        year = today.strftime("%Y")
+        year_month = today.strftime("%Y_%m")
+        with io.StringIO() as csv_buffer:
+            df.to_csv(csv_buffer,index=False)
+            response = MinIO_S3.s3.put_object(Bucket='bucket-test',Key = "bronze/cafef/daily_foreign_transactions/"+year+"/"+year_month+"/"+"2022_12_12"+ ".csv",Body=csv_buffer.getvalue())
+
+            status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+            if status == 200:
+                print(f"Successful S3 put_object response. Status - {status}")
+            else:
+                print(f"Unsuccessful S3 put_object response. Status - {status}")
+
     conn,cursor = db.open_session(SQL_SERVER_CONFIG.CONNECTION_STRING)
     try:
         df = crawler.extract_daily_market_foreign_transactions_by_bs4(market,from_date,to_date)
 
         if df.shape[0] >=1:
-            handle_delete_data(cursor,market,from_date,to_date)
-            handle_insert_data(cursor,df)
+            # handle_delete_data(cursor,market,from_date,to_date)
+            # handle_insert_data(cursor,df)
+            upload_df_to_s3(df)
+            # csv_file(df)
 
     except Exception as e:
         print(e)

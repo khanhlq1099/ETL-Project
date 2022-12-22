@@ -1,4 +1,6 @@
 import os
+import boto3
+from botocore.client import Config
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # CHROME_DRIVER_PATH = os.path.join(ROOT_DIR,"lib/selenium/chromedriver'")
@@ -25,3 +27,18 @@ class SQL_SERVER_CONFIG:
     # MacOS
     CONNECTION_STRING = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=222.252.14.117;DATABASE=dw_stock;UID=etl;PWD=KPIM#2022;TrustServerCertificate=Yes;"
 
+class MinIO_S3_client:
+    s3 = boto3.client('s3',
+                    endpoint_url='http://127.0.0.1:9000',
+                    aws_access_key_id='khanhlq10',
+                    aws_secret_access_key='khanhlq10',
+                    config=Config(signature_version='s3v4')
+                    )
+
+class MinIO_S3_resource:
+    s3 = boto3.resource('s3',
+                    endpoint_url='http://127.0.0.1:9000',
+                    aws_access_key_id='khanhlq10',
+                    aws_secret_access_key='khanhlq10',
+                    config=Config(signature_version='s3v4')
+                    )

@@ -41,18 +41,18 @@ def extract_daily_symbol_price_data(symbol: str, from_date: date, to_date: date,
     driver.implicitly_wait(10)
     driver.set_page_load_timeout(60)
     driver.get(url)
-    driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_ctl03_dpkTradeDate1_txtDatePicker"]').send_keys(from_date.strftime("%d/%m/%Y"))
+    driver.find_element(By.XPATH, '//*[@id="ContentPlaceHolder1_ctl03_dpkTradeDate1_txtDatePicker"]').send_keys(from_date.strftime("%d/%m/%Y"))
     sleep(1)
-    driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_ctl03_dpkTradeDate2_txtDatePicker"]').send_keys(to_date.strftime("%d/%m/%Y"))
+    driver.find_element(By.XPATH, '//*[@id="ContentPlaceHolder1_ctl03_dpkTradeDate2_txtDatePicker"]').send_keys(to_date.strftime("%d/%m/%Y"))
     sleep(1)
-    driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_ctl03_btSearch"]').click()
+    driver.find_element(By.XPATH, '//*[@id="ContentPlaceHolder1_ctl03_btSearch"]').click()
     sleep(1)
 
     def extract_table_data():
         rows = []
         table_els = driver.find_elements(By.XPATH, '//table[starts-with(@id,"GirdTable")]')
         if len(table_els) > 0:
-            tr_els = table_els[0].find_elements(By.XPATH, '//tr[starts-with(@id,"ctl00_ContentPlaceHolder1_ctl03_rptData")]')
+            tr_els = table_els[0].find_elements(By.XPATH, '//tr[starts-with(@id,"ContentPlaceHolder1_ctl03_rptData")]')
 
             for tr_el in tr_els:
                 rows.append(extract_tr_data_from_table(tr_el))
@@ -556,7 +556,7 @@ def extract_daily_market_history_lookup_price_data_by_bs4(market :str, from_date
         sleep(5)
         
     df = pd.DataFrame(all_rows)
-    print(df)
+    # print(df)
     return df
 
 # Trich xuat du lieu thong ke dat lenh cua tung san
@@ -684,3 +684,30 @@ def extract_daily_market_foreign_transactions_by_bs4(market :str, from_date: dat
     df = pd.DataFrame(all_rows)
     print(df)
     return df
+
+def extract_daily_exchange_rate_by_selenium(driver : webdriver.Chrome = None) -> pd.DataFrame:
+    url = f"https://s.cafef.vn/du-lieu.chn"
+
+    if driver is None:
+        chrome_options = Options()
+        # chrome_options.add_argument("--disable-extensions")
+        # chrome_options.add_argument("--disable-gpu")
+        # chrome_options.add_argument("--no-sandbox") # linux only
+        # chrome_options.add_argument("--incognito")
+        chrome_options.add_argument("--window-size=1920x1080")
+        # chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--verbose")
+        # chrome_options.headless = True # also works
+
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+        # driver = webdriver.Remote("http://127.0.0.1:4444/wd/hub",DesiredCapabilities.CHROME)
+        # executable_path = f"{ROOT_DIR}/stock/lib/chromedriver"
+        # driver = webdriver.Chrome(options=chrome_options, executable_path=executable_path)
+    driver.implicitly_wait(10)
+    driver.set_page_load_timeout(60)
+    driver.get(url)
+    
+    driver.find_element(By.XPATH, '//*[@id="tyGia"]').click()
+    sleep(1)
+
+    return
