@@ -17,6 +17,58 @@ import pandas as pd
 
 import lib.convert_helper as convert_helper
 
+def extract_symbol_info(driver: webdriver.Chrome = None) -> pd.DataFrame:
+    if driver is None:
+        chrome_options = Options()
+        # chrome_options.add_argument("--disable-extensions")
+        # chrome_options.add_argument("--disable-gpu")
+        # chrome_options.add_argument("--no-sandbox") # linux only
+        # chrome_options.add_argument("--incognito")
+        chrome_options.page_load_strategy = 'normal'
+        # chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--verbose")
+        # chrome_options.headless = True # also works
+
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+        # driver = webdriver.Remote("http://127.0.0.1:4444/wd/hub",DesiredCapabilities.CHROME)
+        # executable_path = f"{ROOT_DIR}/stock/lib/chromedriver"
+        # driver = webdriver.Chrome(options=chrome_options, executable_path=executable_path)
+
+    driver.implicitly_wait(10)
+    driver.set_page_load_timeout(60)
+    driver.get('https://s.cafef.vn/du-lieu-doanh-nghiep.chn#data')
+    
+    options = ['Nông nghiệp', 'Hàng tiêu dùng', 'Năng lượng', 'Tài chính', 'Y tế', 'Công nghiệp', 'Nguyên vật liệu',
+            'Bất động sản và Xây dựng', 'Dịch vụ', 'Công nghệ', 'Viễn thông']
+    rows = []
+    
+    for option in options:
+        select = Select(driver.find_element(By.XPATH, '//*[@id="CafeF_ThiTruongNiemYet_Nganh"]'))
+
+        select.select_by_visible_text(option)
+        driver.find_element(By.XPATH, '//*[@id="CafeF_DSCongtyNiemyet"]/div/div[1]/table/tbody/tr[3]/td/table/tbody/tr[2]/td[3]/img').click()
+        sleep(1)
+        try:
+            driver.find_element(By.XPATH, '//*[@id="CafeF_ThiTruongNiemYet_Trang"]/a[2]').click()
+            sleep(1)
+        except:
+            pass
+        
+        tr_els = driver.find_elements(By.XPATH, '//*[@id="CafeF_ThiTruongNiemYet_Content"]/table/tbody/tr')
+
+        for tr_el in tr_els[1::]:
+            col_0 = tr_el.find_element(By.XPATH, './/td[1]//a').text
+            col_1 = tr_el.find_element(By.XPATH, './/td[2]//a').text
+            col_2 = tr_el.find_element(By.XPATH, './/td[3]').text
+            col_3 = tr_el.find_element(By.XPATH, './/td[4]').text
+        
+            rows.append({'ma': col_0.strip(), 'ten_cong_ty': col_1.strip(), 'san': col_3.strip(), 'nganh': option})
+        
+    driver.quit()    
+    df = pd.DataFrame(data=rows)
+    # json_str = json.dumps(rows)
+    # df = pd.read_json(json_str)
+    return df
 
 def extract_daily_symbol_price_data(symbol: str, from_date: date, to_date: date, driver: webdriver.Chrome = None) -> pd.DataFrame:
     page_index = 1
